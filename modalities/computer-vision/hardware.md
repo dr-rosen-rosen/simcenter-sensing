@@ -18,7 +18,7 @@ Runs Ubuntu + the ZED SDK; supports multi-camera fusion for body tracking.
 | Field                | Value |
 |----------------------|-------|
 | ZedBox model         | TODO  |
-| Attached cameras     | TODO (model, count, serials' last 4) |
+| Attached cameras     | 2× ZED (model TODO): `zed-7796` (cam1, right), `zed-9816` (cam2, left) |
 | ZED SDK version      | TODO  |
 | OS / JetPack         | TODO  |
 | Bundled body model   | TODO (e.g., HUMAN_BODY_MEDIUM, BODY_34) |

@@ -17,8 +17,21 @@ specific and reproducible.
 
 ## `[serial] open failed` in recorder console
 
-- **Cause:**
-- **Fix:**
+- **Cause (all cameras fail at once, "Camera::open() has not been called" /
+  "no Camera instance running"):** `cam.open()` was called concurrently from
+  multiple threads — one per camera — at process start. The ZED SDK's
+  GPU/CUDA context init on the first `open()` in a process isn't safe to
+  race, so every concurrent `open()` can fail together. Fixed in
+  `multiCameraRecord.py` by opening all cameras sequentially in the main
+  thread first, then only parallelizing the grab loop afterward
+  (`open_camera()` / `opened = [...]` in `main()`).
+- **Cause (single camera):** another process (`ZED_Explorer`, `ZED360`, a
+  previous unclosed run) already holds that camera open — only one client
+  connection is allowed per camera — or a cabling/power issue on a shared USB
+  hub, or the serial in `camera_roles.json` doesn't match a connected device.
+- **Fix:** Kill stray `ZED_Explorer`/`ZED360`/Python processes (`ps aux | grep -i zed`)
+  before recording; confirm both serials show in a standalone `ZED_Explorer`
+  run with nothing else open; check cabling if only one camera is affected.
 
 ## Recording starts but `.svo2` file size stays at 0
 

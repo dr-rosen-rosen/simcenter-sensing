@@ -42,6 +42,9 @@ User-config knobs (top of `replay_fusion_enhanced.py`):
 - `BODY_MODEL` — `HUMAN_BODY_FAST` / `MEDIUM` / `ACCURATE`
 - `BODY_FORMAT` — `BODY_34` or `BODY_38`
 - `WRITE_DEMO_VIDEOS`, `SAVE_HEAD_CROPS`, `RUN_GAZE_MODEL` — optional outputs
+- `ARM_ANGLES_ENABLED` (default on), `ARM_CONF_THRESHOLD`, `ARM_SMOOTH_WINDOW` —
+  arm joint angles appended to the CSV (see
+  [code/arm_joint_angles.py](code/arm_joint_angles.py))
 
 ## Outputs
 
@@ -59,4 +62,16 @@ which are aligned across cameras by Fusion. To align with **other modalities**
 <!-- TODO(unassigned): Verify the BODY_34 / BODY_38 keypoint indices used in gaze_geometry.py match the deployed ZED SDK build; comment-pin the SDK version in that file. -->
 <!-- TODO(unassigned): Replace the GazeEstimator placeholder with a chosen gaze model (Gaze360 candidate). Document training-domain assumptions and licensing in this file. -->
 <!-- TODO(unassigned): Lift USER CONFIG out of replay_fusion_enhanced.py into a YAML/CLI interface so the script doesn't get hand-edited per run. -->
-<!-- TODO(unassigned): The acceleration estimate in compute_vel_acc() returns zeros — needs a real second-difference or smoothed estimator using v_hist. -->
+<!-- TODO(unassigned): Concurrent-validity check of arm_joint_angles.py against a reference (goniometer / marker-based) to quantify angle error for the feasibility write-up. -->
+
+## Arm joint angles
+
+`replay_fusion_enhanced.py` appends per-frame elbow/shoulder angles for both
+arms (see [data-spec.md](data-spec.md#arm-joint-angles)). The angle math lives
+in [`code/arm_joint_angles.py`](code/arm_joint_angles.py) and can also run
+standalone on an existing CSV:
+
+```bash
+python arm_joint_angles.py fused_bodies.csv fused_with_angles.csv --smooth-window 5
+python arm_joint_angles.py --selftest    # validate the angle math on known poses
+```

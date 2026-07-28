@@ -1,0 +1,496 @@
+========================================================================
+simcenter-sensing — Change Log
+========================================================================
+This file documents rectifications made to programs in the repository.
+Newest entries at the top.
+
+
+========================================================================
+2026-07-27 — Coordinate-system mismatch split one person into several tracks
+Files: modalities/computer-vision/code/replay_fusion_enhanced.py
+       modalities/computer-vision/data-spec.md
+========================================================================
+
+SYMPTOM
+  The first successful run of the 2026-07-23 sample produced TWO fused people
+  (person_id 0 and 1, 215 frames each, both high confidence, mean head
+  positions 3.56 m apart). Reviewing demo_cam1.avi showed only ONE person was
+  actually in the room. So Fusion was not merging the two cameras' views of
+  the same subject -- it was emitting one track per camera.
+
+DIAGNOSIS
+  Aligning one track's skeleton onto the other's (rigid Procrustes, rotation +
+  translation, no scale) left only ~5.7 cm mean residual but required a ~90 deg
+  rotation. Near-identical limb geometry + a large pure rotation = the SAME body
+  reconstructed into two different world frames. That is the signature of a
+  coordinate-frame mismatch between the ZED360 calibration extrinsics and the
+  COORDINATE_SYSTEM the clients/Fusion were initialized with (RIGHT_HANDED_Z_UP).
+
+EXPERIMENT (sweep of 6 conventions, same SVOs + same calibration)
+  candidate                  persons  frames/person        sep(m)  resid(cm)  rot(deg)
+  RIGHT_HANDED_Z_UP                3  63 / 211 / 204        5.949        5.7      89.5
+  RIGHT_HANDED_Y_UP                3  63 / 211 / 204        6.276        5.7     132.2
+  LEFT_HANDED_Z_UP                 3  63 / 211 / 204        6.983        5.7      80.0
+  RIGHT_HANDED_Z_UP_X_FWD          2  215 / 215             4.727        6.7      75.7
+  LEFT_HANDED_Y_UP                 1  215                       -          -         -
+  IMAGE                            1  215                       -          -         -
+
+  Only LEFT_HANDED_Y_UP and IMAGE merged the subject into a single person_id
+  with full 215/215-frame coverage.
+
+FIX
+  - Added a single COORD_SYSTEM constant, applied to BOTH the per-camera client
+    init and Fusion init, so the two can no longer drift apart (previously the
+    value was hard-coded separately in each place).
+  - Set COORD_SYSTEM = sl.COORDINATE_SYSTEM.IMAGE.
+
+WHY IMAGE AND NOT LEFT_HANDED_Y_UP (both merged correctly)
+  IMAGE (X right, Y down, Z forward) is RIGHT-handed. LEFT_HANDED_Y_UP is
+  left-handed, which would silently flip the sign of the forward/backward and
+  left/right axes produced by the cross products in arm_joint_angles.py's
+  anatomical frame -- shoulder plane-of-elevation and abduction would come out
+  mirrored, with no error raised. IMAGE gives the same correct merge without
+  perturbing the angle math. (The angle module is invariant across right-handed
+  world frames by design: it builds its frame from the subject's own shoulders
+  and hips.)
+
+VALIDATION SO FAR
+  - fused_IMAGE.csv: 1 person, 215/215 frames, 18 arm-angle columns written.
+  - Physical sanity: head sits clearly above pelvis in the IMAGE output.
+  - NOT YET DONE: full production re-run (videos + head crops) and re-analysis
+    of the arm angles on the corrected single-person data. The external drive
+    (D:) holding the SVO2s, the calibration and all outputs was disconnected
+    before that re-run finished. Reconnect D: and re-run to complete this.
+
+IMPORTANT CONSEQUENCE
+  Every arm-angle number reported from the earlier RIGHT_HANDED_Z_UP run is
+  SUSPECT and should not be shown to anyone: those rows describe a subject
+  reconstructed in the wrong world frame, and the "two people" in that output
+  were one person counted twice. Re-run before using any of it.
+
+GUARDS ADDED so this cannot pass silently again
+  - replay_fusion_enhanced.py now prints a [PEOPLE] summary at the end of every
+    run (per-person frame count, % coverage, mean head position) and prints an
+    explicit WARNING when more than one person was tracked, pointing at the
+    demo video and the diagnostic tool. Unit-tested on healthy / fragmented /
+    empty cases.
+  - NEW code/diagnose_fusion_frame.py: sweeps the six COORDINATE_SYSTEM
+    candidates over a given SVO pair + calibration and reports how many people
+    each produces, plus a rigid-alignment residual/rotation between the two
+    biggest tracks (small residual + large rotation = one body in two frames).
+    It recommends a winner and PREFERS A RIGHT-HANDED one, warning if only
+    left-handed conventions merge. Run it once per camera setup/recalibration.
+        python diagnose_fusion_frame.py --svo cam1.svo2 --svo cam2.svo2 \
+            --fusion-conf fusion_calibration.json --fast
+  - session-protocol.md: "check the person count" is now sanity check #1.
+
+
+========================================================================
+2026-07-27 — Port fusion pipeline to the installed ZED SDK 5.4 API
+File: modalities/computer-vision/code/replay_fusion_enhanced.py
+========================================================================
+
+CONTEXT
+  First real run of the pipeline (ZED SDK 5.4 + pyzed 5.4.1, RTX 5060) against
+  the 2026-07-23 sample. The fusion code had been written against an older SDK
+  API and failed at runtime. Fixed each mismatch as it surfaced; the pipeline
+  now runs end to end and produces fused_bodies.csv with arm angles.
+
+FIXES (all verified against SDK 5.4)
+  1. FUSION_ERROR_CODE vs ERROR_CODE: Fusion methods return the distinct
+     FUSION_ERROR_CODE enum. Comparing fusion.init()'s result to
+     ERROR_CODE.SUCCESS was always "not equal", so init falsely reported
+     "init failed: SUCCESS". Now compared against FUSION_ERROR_CODE.SUCCESS
+     (init, subscribe, enable_body_tracking).
+  2. add_camera() -> subscribe(): the 5.4 API is
+     fusion.subscribe(CameraIdentifier, CommunicationParameters, Transform pose).
+     Rewrote add_inputs_to_fusion() to build a CameraIdentifier (serial),
+     shared-memory comm params, and a world pose Transform. Added helper
+     _transform_from_matrix() (fills sl.Matrix4f from the 4x4 world_T_cam;
+     identity when no calibration).
+  3. enable_body_tracking_fusion() -> enable_body_tracking(); and it MUST be
+     called AFTER subscribe (else "WRONG BODY FORMAT", since Fusion resolves the
+     senders' body format at enable time). Split init_fusion() so process_session
+     now runs init -> subscribe -> enable in that order.
+  4. grab(FusionRuntimeParameters) -> process(): sl.FusionRuntimeParameters
+     does not exist in 5.4; fusion.process() takes no args. retrieve_bodies now
+     requires a BodyTrackingFusionRuntimeParameters, so we pass one.
+  5. disable_body_tracking_fusion() -> disable_body_tracking().
+  6. int(b.tracking_state) crashed: tracking_state is an OBJECT_TRACKING_STATE
+     enum in 5.4. Now take .value (with a numeric fallback).
+
+FIRST-RUN RESULT (2026-07-23 sample, PERFORMANCE depth for speed)
+  - 215 fused frames over ~8.0 s; fused_bodies.csv written with 18 arm-angle
+    columns; demo videos + head crops produced.
+  - The pipeline ran end to end: the SDK-5.4 port above is confirmed working.
+
+  !! RETRACTED (corrected 2026-07-27, later the same day) !!
+  This entry originally reported "arm-angle quality 100% ok", "segment lengths
+  stable", "angles physically plausible", and concluded that the two tracked
+  person_ids meant "the trainee plus a second person, select the trainee's id".
+  ALL OF THAT IS WRONG. Only ONE person was in the room: reviewing the demo
+  video showed a single subject, and the two tracks turned out to be that one
+  body reconstructed into two different world frames by a coordinate-system
+  mismatch. The quality flags and segment lengths looked healthy precisely
+  because the skeleton WAS well-formed -- it was merely placed in the wrong
+  frame, which those checks cannot see. Do not reuse any angle number from this
+  run. See the 2026-07-27 "coordinate-system mismatch" entry at the top of this
+  file for the diagnosis, the fix, and the guards added so a fragmented subject
+  can no longer pass silently.
+
+FOLLOW-UP
+  - PERFORMANCE depth is deprecated in 5.4; final/accurate passes should use
+    NEURAL (one-time model optimization).
+  - Consider whether HUMAN_BODY model / BODY_FORMAT should change for the final
+    dataset.
+
+
+========================================================================
+2026-07-27 — Fusion calibration loader now reads real ZED360 format
+File: modalities/computer-vision/code/projection_helpers.py
+========================================================================
+
+PROBLEM (found against a real calibration file, D:\zedrec\L&D_07-23-26.json)
+  load_extrinsics_from_fusion_conf() only parsed a hand-authored schema
+  ({"cameras":[{"pose":{"rotation","translation"}}]}). The file ZED360 actually
+  writes is a dict keyed by serial number, each with a "FusionConfiguration"
+  whose "pose" is a flat string of 16 whitespace-separated floats (row-major
+  4x4). Against the real file the old parser matched nothing and returned an
+  empty map -> the pipeline would fall back to identity camera poses and fuse
+  the two cameras incorrectly (silently wrong 3D).
+
+FIX
+  - Added parsing for the ZED360 serial-keyed / FusionConfiguration layout,
+    including a helper _twc_from_pose_string() that turns the 16-float pose
+    string (or a numeric 16-sequence) into a 4x4 world_T_cam.
+  - Kept the original list layout as a fallback for compatibility.
+
+VALIDATION (pure JSON/numpy on this laptop; no ZED SDK required)
+  Parsed D:\zedrec\L&D_07-23-26.json (serials 44429816, 45817796):
+    - both cameras parsed; rotation blocks orthonormal with det = +1
+    - invert_se3(Twc) @ Twc == I (round-trips)
+    - camera-to-camera baseline ~2.55 m (sensible for the room setup)
+
+NOTE
+  This unblocks correct fusion once the ZED SDK is installed to run the
+  body-tracking/fusion pipeline on the SVO2 recordings.
+
+
+========================================================================
+2026-07-13 — Session protocol + PI summary + doc refresh
+Files: modalities/computer-vision/session-protocol.md   (new)
+       modalities/computer-vision/pi-summary.md          (new)
+       modalities/computer-vision/data-spec.md           (updated)
+       modalities/computer-vision/processing.md          (updated)
+       modalities/computer-vision/README.md              (updated)
+       modalities/computer-vision/code/README.md         (updated)
+========================================================================
+
+GOAL
+----
+Design an end-to-end protocol (room setup -> recording -> data) for a
+single-subject procedural-skills session, and document, in PI-facing terms,
+what data the setup yields. Focus per user: single subject, arm-angle /
+ergonomics metrics, feasibility.
+
+NEW: session-protocol.md
+  Consolidated runbook that stitches the per-phase SOPs into one flow for the
+  single-subject arm-kinematics use case: Phase 1 room setup (two ZED cameras,
+  frontal-oblique, FOV overlap for fusion, lighting, ZED360 calibration lock),
+  Phase 2 condensed pre-session checklist (adds a start-of-session "arms-down"
+  calibration frame for a 0-degree angle sanity check), Phase 3 recording with
+  sync markers, Phase 4 processing (fusion -> 3D -> angles), Phase 5 the data
+  you get + how to sanity-check it, plus run-sheet fields.
+
+NEW: pi-summary.md
+  Non-implementation summary for the PI: what we record, what we can produce
+  (fused_bodies.csv incl. arm angles, demo video, head crops), the arm-angle
+  set explained plainly, the derived analysis metrics (ROM, ergonomic exposure
+  a la RULA/REBA, movement smoothness, bimanual symmetry, working envelope,
+  tempo), feasibility evidence (pipeline runs, angle self-test, quality
+  signals), and honest limitations (calibration dependency, occlusion, gaze is
+  a head-orientation proxy, not yet validated vs a goniometer).
+
+DOC REFRESH (bring stale docs in line with the code fixes)
+  - data-spec.md: acceleration columns are now real second-differences (were
+    documented as "emitted as zeros"); added the full arm-joint-angle column
+    table; noted head_crops are now actually written + filename pattern.
+  - processing.md: added ARM_ANGLES_* config knobs, a new "Arm joint angles"
+    section with the standalone/self-test commands; replaced the stale
+    "acceleration returns zeros" TODO with a concurrent-validity TODO.
+  - README.md (CV): added session-protocol.md and pi-summary.md to the section
+    index.
+  - code/README.md: added arm_joint_angles.py to the file inventory and the
+    "how they fit together" diagram.
+
+NOTES
+  - Docs use TODO(unassigned) placeholders (matching repo convention) for
+    site-specific values still to be pinned in a pilot: exact camera
+    angles/distances/heights + a room diagram, disk GB/hour, lighting range.
+  - Recommended next step for the feasibility pitch: one pilot session, then a
+    concurrent-validity check of the angles against a reference measurement.
+
+
+========================================================================
+2026-07-13 — Arm joint angles from the fused 3D skeleton
+New file: modalities/computer-vision/code/arm_joint_angles.py
+Edited:   modalities/computer-vision/code/replay_fusion_enhanced.py
+========================================================================
+
+GOAL
+----
+After the two SVO2 recordings are fused into a single 3D skeleton (the
+"hybridized image"), compute upper-limb (arm) joint angles per person per
+frame, at research quality: robust to missing/low-confidence joints, invariant
+to the world coordinate convention, and validated.
+
+NEW MODULE: arm_joint_angles.py
+-------------------------------
+Computes both arms' angles from a single skeleton's 3D WORLD keypoints.
+
+  Method
+  - Builds a subject-anchored anatomical trunk frame from the shoulders and
+    hips (e_sup = up, e_right = subject's right, e_ant = forward = e_sup x
+    e_right). Because the frame is derived from the body itself, results do NOT
+    depend on the world axis convention (RIGHT_HANDED_Z_UP or otherwise).
+  - Elbow: clinical flexion (0 deg = straight, increasing as it bends) plus the
+    raw included segment angle for transparency.
+  - Shoulder: ISB-style, gimbal-free decomposition:
+      * elevation angle  (0 = arm down, 90 = horizontal, 180 = straight up)
+      * plane of elevation (0 = forward flexion, +90 = lateral abduction,
+        +/-180 = extension), side-symmetric so left/right compare directly.
+    Also emits the classic planar shoulder_flexion / shoulder_abduction for
+    convenience (clearly documented as degenerate under combined motions).
+  - QA: per-segment lengths (upperarm_len_m, forearm_len_m) and a per-arm
+    `quality` flag: ok / low_confidence / missing_joints / degenerate_trunk /
+    degenerate_segment. Uncomputable angles are NaN, never fabricated.
+
+  Robustness
+  - Joint indices resolved from the live ZED SDK enum (sl.BODY_34_PARTS /
+    BODY_38_PARTS) when pyzed is present; documented fallback constants for the
+    BODY_34 and BODY_38 layouts otherwise (so the module also runs offline on a
+    machine without the SDK). NOTE: these arm indices intentionally do NOT reuse
+    gaze_geometry.py's head/eye indices, which that file itself marks "verify".
+  - Non-finite coordinates and (optional) per-keypoint confidence gating are
+    handled; supports both BODY_34 and BODY_38.
+  - Optional temporal smoothing (AngleSmoother): moving MEDIAN for linear
+    angles, circular mean for the wrap-around plane-of-elevation angle.
+
+  Two ways to run
+  1) In-pipeline: replay_fusion_enhanced.py imports compute_arm_angles and
+     appends angle columns to each fused-body CSV row (see below).
+  2) Offline: `python arm_joint_angles.py fused_bodies.csv out.csv
+     [--smooth-window N]` reads an existing fused CSV, reconstructs keypoints
+     from the k{i}_x/y/z columns, and writes a copy with the angle columns
+     appended. Body format auto-detected from the keypoint count.
+
+  Validation (run on Anaconda Python; numpy only)
+  - `python arm_joint_angles.py --selftest` builds synthetic poses with known
+    ground truth and PASSES all: elbow 0/90 deg, shoulder elevation 90 deg with
+    plane 0 (forward) vs +90 (abduction), and graceful NaN + "missing_joints"
+    when a joint is absent.
+  - The offline annotate_csv path was exercised on a synthetic fused CSV and
+    produced the expected left-arm angles with correct quality flags.
+
+INTEGRATION INTO replay_fusion_enhanced.py
+------------------------------------------
+- Import compute_arm_angles / csv_angle_columns / get_arm_indices / AngleSmoother.
+- New config block: ARM_ANGLES_ENABLED (default True), ARM_CONF_THRESHOLD,
+  ARM_SMOOTH_WINDOW.
+- write_csv_header() appends csv_angle_columns() when enabled.
+- main() resolves arm indices once (arm_idx) and optionally builds a smoother.
+- In the single fused-body loop, angles are computed from that body's fused 3D
+  keypoints (using keypoint_confidence when available) and appended to the row,
+  so every angle column stays matched to the same person as its keypoints.
+- Final status line reports how many angle columns were written.
+
+NOTES / FOLLOW-UP
+-----------------
+- Angles are derived from the FUSED 3D skeleton, so their accuracy inherits the
+  fusion calibration quality (see issue F in the 2026-07-01 entry re: verifying
+  the extrinsics frame). Segment-length QA columns help spot bad tracking.
+- To sanity-check on your real recordings: run the fusion script to produce
+  fused_bodies.csv, then eyeball the *_len_m columns for stability and confirm
+  elbow_flexion ~0 when arms hang straight in a calibration frame.
+
+
+========================================================================
+2026-07-01 — Hybrid 3D (Fusion) pipeline review + fixes
+Files: modalities/computer-vision/code/replay_fusion_enhanced.py
+       (helpers reviewed: gaze_geometry.py, projection_helpers.py)
+========================================================================
+
+------------------------------------------------------------------------
+PART 1 — COHESIVE REVIEW: how the hybrid 3D image is constructed
+------------------------------------------------------------------------
+The pipeline builds a single fused 3D skeleton ("hybrid 3D image") from two
+ZED SVO2 recordings as follows:
+
+  1. Each SVO is opened as a Fusion *client* (open_client_from_svo). Positional
+     tracking is enabled (static cameras), then body tracking, and each client
+     publishes its detections to local shared memory.
+  2. A Fusion instance is initialized (RIGHT_HANDED_Z_UP, meters). Each camera
+     is registered with its serial and its world_T_cam extrinsics, read from
+     fusion_calibration.json (projection_helpers.load_extrinsics_from_fusion_conf).
+  3. On each iteration every client is grabbed once; then Fusion is grabbed and
+     the *fused* 3D skeletons (WORLD coords) are retrieved and written to CSV,
+     with per-joint velocity/acceleration and a head-frame/gaze vector
+     (gaze_geometry.compute_head_frame_world).
+  4. For the demo videos, each camera draws its own local 2D skeleton, and the
+     fused head/gaze is projected back into that camera's image
+     (projection_helpers.project_point) to draw a gaze arrow.
+
+The helpers are sound:
+  - gaze_geometry.py: robust head-frame construction with sensible fallbacks
+    and a re-orthonormalized right-handed basis. No changes needed.
+  - projection_helpers.py: standard SE3 inversion, pinhole projection, Fusion
+    calib parsing. No changes needed. (See issue F below re: which frame the
+    extrinsics are expressed in — a data/config question, not a code bug.)
+
+The problems were concentrated in replay_fusion_enhanced.py and would have
+corrupted the fused output and/or crashed the demo-video stage.
+
+------------------------------------------------------------------------
+PART 2 — ISSUES FOUND
+------------------------------------------------------------------------
+A. (CRITICAL) Head/gaze columns matched to the WRONG person.
+   The per-body CSV loop contained a *second* `for b in fused.body_list`
+   nested inside it that reused the loop variable `b` (and `kp`, `head_o`,
+   `fwd`). Keypoints and kinematics were written for the correct body, but the
+   head_* and gaze_* columns ended up holding whichever body was LAST in the
+   list. The head-frame computed earlier in the outer loop was discarded.
+
+B. (CRITICAL) Possible NameError in the demo-video stage.
+   `fused_head_gaze` was created *inside* the fused-body loop, but consumed
+   later in the demo-video block. On any frame with no fused bodies, or when
+   fusion.grab() didn't return SUCCESS, the variable never existed and the
+   video block would raise NameError.
+
+C. (CRITICAL) One camera's output size leaked to the other.
+   `out_w`/`out_h` were set inside the writer-creation loop and kept the LAST
+   camera's dimensions. In the main loop every camera's frame was resized to
+   those same dims. With cameras of different resolutions, camera 0's frame got
+   camera 1's size and VideoWriter.write() would silently drop it.
+
+D. Acceleration was always zero.
+   compute_vel_acc returned a = zeros by design, yet the CSV advertises
+   k*_ax/ay/az columns. Velocity was real; acceleration was fake-zero.
+
+E. Head crops were dead code.
+   SAVE_HEAD_CROPS made the output dir and extract_head_crop() existed, but it
+   was never called, so no crops were ever produced.
+
+F. (VERIFY — not auto-fixable) Coordinate-frame consistency for projection.
+   Fusion runs RIGHT_HANDED_Z_UP/meters, but the clients did not set a
+   coordinate system/units (defaults: IMAGE, millimeters). Separately, the
+   gaze-arrow projection assumes a standard optical frame (+Z forward, +Y down);
+   if fusion_calibration.json stores extrinsics in the Z-up world frame, the
+   projected arrows will be misaligned. This depends on the real calibration
+   file and must be verified against actual data.
+
+------------------------------------------------------------------------
+PART 3 — FIXES APPLIED (and how)
+------------------------------------------------------------------------
+A. Collapsed the two loops into ONE pass per fused body. For each body we now
+   build keypoints, kinematics, AND that same body's head/gaze into `row`, so
+   every column stays matched to one person. Removed the discarded head-frame
+   computation and the nested loop entirely. The CSV now stores the *normalized*
+   gaze direction (unit vector) instead of the raw (un-normalized) forward.
+
+B. `fused_head_gaze = {}` is now initialized at the TOP of each frame iteration
+   (before fusion.grab), so the demo-video block always has a defined value.
+   It is populated per body inside the (now single) loop.
+
+C. Added an `out_sizes` list holding each camera's own (out_w, out_h) at writer
+   creation; the resize in the main loop now uses `out_sizes[i]` for camera i.
+
+D. compute_vel_acc now takes `prev_vel` and computes real acceleration
+   a = (v - prev_vel) / dt (zeros only on the first usable frame). main() keeps
+   a `prev_vel` dict per person and passes/stores it each frame.
+
+E. Wired up head crops: a new block runs when SAVE_HEAD_CROPS is set, iterating
+   each camera's local 2D bodies, calling extract_head_crop(), and saving to
+   HEAD_CROP_DIR as cam{n}_pid{id}_{frame:06d}.png. Runs independently of the
+   demo-video flag.
+
+F. Partially addressed: the clients now set coordinate_units=METER and
+   coordinate_system=RIGHT_HANDED_Z_UP to match Fusion (removes the units/frame
+   ambiguity on the publishing side). The projection-frame question (which frame
+   the JSON extrinsics use) is LEFT AS-IS and flagged for verification against a
+   real fusion_calibration.json before trusting the on-video gaze arrows.
+
+FOLLOW-UP / NOTES
+-----------------
+- Verify issue F with an actual calibration file + a quick visual check that the
+  gaze arrows land on the right heads.
+- Joint angles are NOT yet computed anywhere. The fixed fused CSV (3D WORLD
+  keypoints per joint) is the correct input for that; planned as the next step.
+
+
+========================================================================
+2026-07-01 — modalities/computer-vision/code/multiCameraRecord.py
+========================================================================
+
+CONTEXT
+-------
+Headless script that records SVO2 video from all detected ZED cameras.
+Reviewed for errors; the reported problem was that the save location was
+poorly documented and recordings overwrote one another.
+
+USER DECISIONS (from Q&A)
+-------------------------
+- Filename timestamp granularity ...... Date + time (full timestamp).
+- Camera 1/2 assignment ............... Fixed serial-number -> label map.
+- Serial numbers ...................... To be filled in later; placeholders
+                                        + safe fallback provided.
+
+ERRORS / ISSUES IDENTIFIED
+--------------------------
+1. OVERWRITING (reported): filename was "{serial}.svo2" only. Every session
+   wrote the same file per camera, silently overwriting prior recordings.
+   No date, no camera 1/2 label.
+2. UNDOCUMENTED SAVE LOCATION (reported): output went to "~/zed_rec" but the
+   path was never announced up front.
+3. grab() RETURN CODE IGNORED: the ZED SDK only writes a frame when grab()
+   returns SUCCESS. Failures were neither logged nor throttled, so a failing
+   grab would busy-spin the CPU.
+4. DEPTH_MODE.NEURAL for pure recording: loads a heavy AI model that is
+   unnecessary when only recording SVO files; can slow startup/streaming.
+5. UNSTABLE CAMERA ORDER: get_device_list() order is not guaranteed stable
+   between runs, so numbering purely by enumeration order is unreliable.
+
+CHANGES MADE
+------------
+A. Added a CAMERA_LABELS dict (serial -> "cam1"/"cam2") near the top of the
+   file, with placeholder serials (111111111 / 222222222) and a TODO to fill
+   in real values. Fixes issue #5 (stable, run-independent labels).
+   - Added label_for() helper with a safe fallback: any unmapped serial is
+     labelled "cam-SN<serial>", so recordings stay uniquely named even before
+     the map is filled in.
+
+B. New filename format:  <label>_<date>_<time>.svo2
+   Example:  cam1_2026-07-01_14-32-05.svo2
+   - "cam1"/"cam2" separates the cameras (your request).
+   - Date + time prevents overwriting prior videos, even for multiple
+     recordings on the same day. Fixes issue #1.
+   - A single session timestamp is generated once in main() and shared by all
+     cameras, so cam1/cam2 files from the same run carry an identical stamp
+     and are easy to pair.
+
+C. Save location now stated and logged: main() prints
+   "Saving recordings to: <out_dir>" and ensures the directory exists.
+   Fixes issue #2. (Location itself unchanged: ~/zed_rec.)
+
+D. grab() return code is now checked; failures are logged as
+   "grab failed: <err>" with a 5 ms backoff to avoid a busy-spin. Fixes #3.
+
+E. depth_mode changed NEURAL -> NONE for pure recording, with a comment on
+   how to re-enable depth if needed later. Addresses #4.
+
+F. Each detected camera's serial and resolved label are printed at startup
+   for easy identification / to read off real serials for CAMERA_LABELS.
+
+FOLLOW-UP NEEDED FROM USER
+--------------------------
+- Fill in the real ZED serial numbers in CAMERA_LABELS (replace 111111111 /
+  222222222). Until then, files use the "cam-SN<serial>" fallback names.

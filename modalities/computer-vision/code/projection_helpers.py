@@ -36,24 +36,53 @@ def load_extrinsics_from_fusion_conf(conf_path: str):
     """
     Parse a Stereolabs Fusion calibration file and return:
       serial -> world_T_cam (4x4)
-    We handle common layouts:
-      { "cameras": [
-           { "serial_number": 444..., "pose": {"rotation": [[...],[...],[...]], "translation":[x,y,z]} },
-           ...
-        ]}
-    If your file uses different keys, tweak the parser below.
+
+    Handles two layouts:
+
+    1) ZED360 export (what the ZED360 tool actually writes) — a dict keyed by
+       serial, each value holding a "FusionConfiguration" with a flat 16-value
+       row-major 4x4 "pose" string:
+         { "44429816": { "FusionConfiguration": {
+               "pose": "1 0 0 0  0 1 0 -1.36  0 0 1 0  0 0 0 1",
+               "serial_number": 44429816, ... } }, ... }
+
+    2) A generic list layout (kept for compatibility / hand-authored files):
+         { "cameras": [
+             { "serial_number": 444..., "pose": {"rotation": [[..],[..],[..]],
+                                                 "translation":[x,y,z]} }, ... ] }
     """
     with open(conf_path, "r") as f:
         data = json.load(f)
 
     serial_to_Twc = {}
-    # Try common layouts:
+    if not isinstance(data, dict):
+        return serial_to_Twc
+
+    # --- Layout 1: ZED360 serial-keyed dict with FusionConfiguration ---
+    for key, val in data.items():
+        if not isinstance(val, dict):
+            continue
+        fc = val.get("FusionConfiguration")
+        if not isinstance(fc, dict):
+            continue
+        pose = fc.get("pose")
+        sn = fc.get("serial_number", key)
+        Twc = _twc_from_pose_string(pose)
+        if Twc is None:
+            continue
+        try:
+            serial_to_Twc[int(sn)] = Twc
+        except (TypeError, ValueError):
+            continue
+    if serial_to_Twc:
+        return serial_to_Twc
+
+    # --- Layout 2: generic list of cameras/sensors ---
     candidates = []
-    if isinstance(data, dict):
-        if "cameras" in data and isinstance(data["cameras"], list):
-            candidates = data["cameras"]
-        elif "sensors" in data and isinstance(data["sensors"], list):
-            candidates = data["sensors"]
+    if "cameras" in data and isinstance(data["cameras"], list):
+        candidates = data["cameras"]
+    elif "sensors" in data and isinstance(data["sensors"], list):
+        candidates = data["sensors"]
 
     for cam in candidates:
         # serial
@@ -73,6 +102,26 @@ def load_extrinsics_from_fusion_conf(conf_path: str):
         Twc[:3, 3] = t
         serial_to_Twc[int(sn)] = Twc
     return serial_to_Twc
+
+
+def _twc_from_pose_string(pose):
+    """Parse a ZED360 flat pose into a 4x4 world_T_cam, or None if unparseable.
+
+    The pose is 16 whitespace-separated floats in row-major order (a full 4x4
+    homogeneous transform). Accepts a already-numeric 16-length sequence too.
+    """
+    if pose is None:
+        return None
+    try:
+        if isinstance(pose, str):
+            vals = [float(x) for x in pose.split()]
+        else:
+            vals = [float(x) for x in pose]
+    except (TypeError, ValueError):
+        return None
+    if len(vals) != 16:
+        return None
+    return np.array(vals, dtype=float).reshape(4, 4)
 
 def intrinsics_from_caminfo(cam_info) -> dict:
     """
