@@ -10,13 +10,18 @@ Wearable-sensor capture of autonomic-nervous-system signals during simulation
 sessions: heart rate and HRV, electrodermal activity, skin temperature,
 accelerometry, and (depending on device) respiration and ECG.
 
-## Devices in active use
+## Devices
 
-| Device         | Signals                                | Wear location | Subdir |
-|----------------|-----------------------------------------|---------------|--------|
-| Empatica E4    | BVP, EDA, skin temp, 3-axis accel       | Wrist         | [devices/empatica-e4/](devices/empatica-e4/README.md) |
-| EmotiBit       | PPG, EDA, skin temp, 3-axis IMU, more   | Wrist / chest | [devices/emotibit/](devices/emotibit/README.md) |
-| BioRadio       | GSR, ECG, RIP (respiration), pulse ox   | Chest + pod   | [devices/bioradio/](devices/bioradio/README.md) |
+| Device         | Signals                                | Wear location | Priority     | Subdir |
+|----------------|-----------------------------------------|---------------|--------------|--------|
+| Empatica E4    | BVP, EDA, skin temp, 3-axis accel       | Wrist         | Active       | [devices/empatica-e4/](devices/empatica-e4/README.md) |
+| EmotiBit       | PPG, EDA, skin temp, 3-axis IMU, more   | Wrist / chest | Active       | [devices/emotibit/](devices/emotibit/README.md) |
+| BioRadio       | GSR, ECG, RIP (respiration), pulse ox   | Chest + pod   | **Deferred** | [devices/bioradio/](devices/bioradio/README.md) |
+
+**BioRadio is deferred** — not planned for near-term studies. Setup notes
+are retained under `devices/bioradio/` as reference for possible future
+use, but the architecture and processing pipelines should not be shaped
+around BioRadio's requirements.
 
 ## Cross-device material
 
@@ -36,7 +41,7 @@ combination of devices. Device-specific details live under `devices/`.
 <!-- TODO(unassigned): Triage existing physio notes and code; this is a high-priority Phase 1 effort -->
 
 - [ ] Identify canonical sync code (see [tpd's `1_funcs_generic.R`](../../docs/storage.md)) and migrate / link from `shared/`
-- [ ] Draft per-device fitting protocols
-- [ ] Document multi-device time-sync routine (clocks across E4 + EmotiBit + BioRadio)
+- [ ] Draft per-device fitting protocols (E4, EmotiBit)
+- [ ] Document multi-device time-sync routine (clocks across E4 + EmotiBit)
 - [ ] Capture known-failure catalog from Joplin notes and prior studies
 - [ ] Define derived feature schema (HR, HRV bands, EDA tonic/phasic, etc.)

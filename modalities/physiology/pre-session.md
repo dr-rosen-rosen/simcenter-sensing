@@ -16,7 +16,7 @@
 
 ## Multi-device sync routine
 
-<!-- TODO(unassigned): Document the canonical sequence for syncing E4 + EmotiBit + BioRadio against one laptop -->
+<!-- TODO(unassigned): Document the canonical sequence for syncing E4 + EmotiBit against one laptop (see docs/time-sync.md for the three-layer architecture). BioRadio is deferred; see modalities/physiology/devices/bioradio/README.md -->
 
 ## Fitting order
 

@@ -1,8 +1,17 @@
 # BioRadio
 
 > **Status:** drafted (setup) / stub (rest)
+> **Priority:** **deferred** — not planned for near-term studies
 > **Owner:** unassigned
 > **Last reviewed:** 2026-06-01
+
+BioRadio is retained here as reference material for possible future use.
+It is **not** part of the near-term physio stack and the broader
+architecture (LSL layer, time-sync approach, host machine assignments)
+should not be shaped around BioRadio's requirements. If BioRadio comes
+back into scope, BioCapture runs on Windows (analysis laptop or a
+dedicated Windows host) and would need either a custom LSL bridge or
+Layer-3 post-hoc alignment — see [docs/time-sync.md](../../../../docs/time-sync.md).
 
 ## Hardware
 

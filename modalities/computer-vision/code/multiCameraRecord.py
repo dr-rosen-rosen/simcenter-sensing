@@ -2,6 +2,16 @@
 import os, threading, signal, sys, time
 import pyzed.sl as sl
 
+# LSL frame markers are optional: recording must never depend on them.
+# To enable on the ZedBox: `pip install pylsl` inside ZED_env.
+try:
+    from pylsl import StreamInfo, StreamOutlet
+    LSL_OK = True
+except ImportError:
+    LSL_OK = False
+
+MARKER_EVERY = 30  # one LSL marker per N successful grabs (~1 Hz at 30 fps)
+
 STOP = False
 def on_sigint(sig, frame):
     global STOP; STOP = True
@@ -25,14 +35,33 @@ def record_one(serial, out_dir, fps=30):
         print(f"[{serial}] enable_recording failed"); cam.close(); return
     print(f"[{serial}] recording to {out_path}")
 
+    # LSL outlet publishing "serial=<s> frame=<n> cam_ts_ns=<t>" markers,
+    # giving a continuous ZED-clock <-> LSL-clock mapping for alignment.
+    outlet = None
+    if LSL_OK:
+        info = StreamInfo(f"simcenter.zed.{serial}", "Markers", 1, 0,
+                          "string", f"zed-{serial}")
+        outlet = StreamOutlet(info)
+        print(f"[{serial}] LSL frame markers on (every {MARKER_EVERY} frames)")
+    else:
+        print(f"[{serial}] pylsl not installed - recording without LSL markers")
+
     rt = sl.RuntimeParameters()
+    frames = 0
     try:
         while not STOP:
-            cam.grab(rt)  # <-- Python SDK writes frames on each successful grab
-            # (no GUI work here)
+            if cam.grab(rt) != sl.ERROR_CODE.SUCCESS:  # SDK writes frames on each successful grab
+                continue
+            frames += 1
+            if outlet and frames % MARKER_EVERY == 0:
+                try:
+                    ts_ns = cam.get_timestamp(sl.TIME_REFERENCE.IMAGE).get_nanoseconds()
+                    outlet.push_sample([f"serial={serial} frame={frames} cam_ts_ns={ts_ns}"])
+                except Exception:
+                    pass  # LSL must never interrupt recording
     finally:
         cam.disable_recording(); cam.close()
-        print(f"[{serial}] stopped")
+        print(f"[{serial}] stopped after {frames} frames")
 
 def main():
     devs = sl.Camera.get_device_list()

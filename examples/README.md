@@ -18,7 +18,7 @@ collaborators have a runnable reference.
 ## Planned examples
 
 - `cv_zedbox_single_subject/` — one synthetic CV session through pose extraction
-- `physio_multi_device/` — one synthetic session with E4 + EmotiBit + BioRadio, time-aligned
+- `physio_multi_device/` — one synthetic session with E4 + EmotiBit, time-aligned
 
 ## TODOs for collaborators
 

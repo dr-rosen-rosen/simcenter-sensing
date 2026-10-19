@@ -16,9 +16,9 @@ phased plan below.
 | Modality          | Status      | Priority | Notes                                         |
 |-------------------|-------------|----------|-----------------------------------------------|
 | Computer vision   | drafted     | high     | Current platform: ZedBox. Intel cameras archived. |
-| Physiology        | stub        | high     | Empatica E4, EmotiBit, BioRadio.              |
+| Physiology        | stub        | high     | Empatica E4, EmotiBit. BioRadio deferred.     |
 | Eye tracking      | drafted     | medium   | Tobii Pro Glasses 3.                          |
-| Communication     | not started | low      | Audio + transcript-based analysis (future).   |
+| Communication     | drafted (planning) | low | Phase 4. Stack planned; awaiting pilot.       |
 
 Status legend: `not started` → `stub` → `drafted` → `reviewed` → `complete` (or `archived`).
 
@@ -29,10 +29,11 @@ docs/                  Cross-cutting conventions (IDs, time sync, storage, gover
 modalities/
   _template/           Copy this when starting a new modality or section
   computer-vision/     ZedBox-based CV; legacy Intel-camera work under _archive/
-  physiology/          E4, EmotiBit, BioRadio (devices/ subdir per device)
+  physiology/          E4, EmotiBit (devices/ subdir per device); BioRadio deferred
   eye-tracking/        Tobii (placeholder)
   communication/       Audio + transcript-based analysis (placeholder)
-shared/                Cross-modality code (time sync, QA, exporters)
+shared/                Cross-modality code (LSL bridges, time sync, QA)
+tools/                 Dev/ops utilities (LSL test outlets, .xdf checker)
 examples/              End-to-end worked sessions (against synthetic data)
 STAGING/               Private workspace; gitignored except for README
 ```

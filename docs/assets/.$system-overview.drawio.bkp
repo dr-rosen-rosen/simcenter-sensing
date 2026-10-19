@@ -1,0 +1,61 @@
+<mxfile host="app.diagrams.net" agent="Claude" version="24.0.0">
+  <diagram name="System Overview" id="system-overview">
+    <mxGraphModel dx="1200" dy="700" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="900" pageHeight="540" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="simcenter-sensing — data collection overview" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=18;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="150" y="15" width="600" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="emotibit" value="&lt;b&gt;EmotiBit&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 10px&quot;&gt;Physio&lt;br&gt;PPG · EDA · IMU · Temp&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;verticalAlign=middle;strokeWidth=2" vertex="1" parent="1">
+          <mxGeometry x="33" y="90" width="140" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="sim" value="&lt;b&gt;Simulator + devices&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 10px&quot;&gt;Mannequin, monitors,&lt;br&gt;ventilator exports&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#666666;dashed=1;fontSize=12;verticalAlign=middle;strokeWidth=2" vertex="1" parent="1">
+          <mxGeometry x="206" y="90" width="140" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="zedbox" value="&lt;b&gt;ZedBox&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 10px&quot;&gt;Video (multi-camera)&lt;br&gt;SVO2 on-device&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#666666;dashed=1;fontSize=12;verticalAlign=middle;strokeWidth=2" vertex="1" parent="1">
+          <mxGeometry x="379" y="90" width="140" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="tobii" value="&lt;b&gt;Tobii Glasses 3&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 10px&quot;&gt;Eye tracking&lt;br&gt;Gaze + scene video&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#666666;dashed=1;fontSize=12;verticalAlign=middle;strokeWidth=2" vertex="1" parent="1">
+          <mxGeometry x="552" y="90" width="140" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="mic" value="&lt;b&gt;Mic Array&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 10px&quot;&gt;Room audio&lt;br&gt;Diarization + ASR&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#666666;dashed=1;fontSize=12;verticalAlign=middle;strokeWidth=2" vertex="1" parent="1">
+          <mxGeometry x="725" y="90" width="140" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="laptop" value="&lt;b style=&quot;font-size: 14px&quot;&gt;Analysis Laptop&lt;/b&gt; &lt;font style=&quot;font-size: 10px&quot;&gt;(Windows + Nvidia)&lt;/font&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;LabRecorder&lt;/b&gt; — canonical clock, records all LSL streams → .xdf&lt;br&gt;&lt;i style=&quot;font-size: 10px&quot;&gt;Post-session: diarization, transcription, CV pose extraction&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;verticalAlign=middle;strokeWidth=2" vertex="1" parent="1">
+          <mxGeometry x="180" y="250" width="540" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="storage" value="&lt;b&gt;Session Storage&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 10px&quot;&gt;.xdf + raw files · external SSD (near-term) → NAS / institutional (later)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=12;verticalAlign=middle;strokeWidth=1" vertex="1" parent="1">
+          <mxGeometry x="180" y="415" width="540" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="e-emotibit" value="LSL" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;endFill=1;strokeColor=#82b366;strokeWidth=2;fontSize=10;fontStyle=1;labelBackgroundColor=#ffffff" edge="1" parent="1" source="emotibit" target="laptop">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-sim" value="LSL" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;endFill=1;strokeColor=#666666;strokeWidth=2;dashed=1;fontSize=10;fontStyle=1;labelBackgroundColor=#ffffff" edge="1" parent="1" source="sim" target="laptop">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-zedbox" value="LSL" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;endFill=1;strokeColor=#666666;strokeWidth=2;dashed=1;fontSize=10;fontStyle=1;labelBackgroundColor=#ffffff" edge="1" parent="1" source="zedbox" target="laptop">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-tobii" value="LSL" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;endFill=1;strokeColor=#666666;strokeWidth=2;dashed=1;fontSize=10;fontStyle=1;labelBackgroundColor=#ffffff" edge="1" parent="1" source="tobii" target="laptop">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-mic" value="USB + LSL" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;endFill=1;strokeColor=#666666;strokeWidth=2;dashed=1;fontSize=10;fontStyle=1;labelBackgroundColor=#ffffff" edge="1" parent="1" source="mic" target="laptop">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-storage" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;endFill=1;strokeColor=#666666;strokeWidth=2" edge="1" parent="1" source="laptop" target="storage">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-title" value="Status:" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=10;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="70" y="500" width="50" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-implemented" value="Implemented" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;strokeWidth=2" vertex="1" parent="1">
+          <mxGeometry x="120" y="500" width="100" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-progress" value="In progress" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#666666;dashed=1;fontSize=10;strokeWidth=2" vertex="1" parent="1">
+          <mxGeometry x="230" y="500" width="100" height="20" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

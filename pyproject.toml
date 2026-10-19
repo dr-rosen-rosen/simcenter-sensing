@@ -1,0 +1,19 @@
+[project]
+name = "simcenter-sensing"
+version = "0.1.0"
+description = "LSL capture tooling and verification utilities for sim-center multimodal data collection"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=1.26",
+    "pylsl>=1.16",
+    "pyxdf>=1.16",
+    "sounddevice>=0.4.6",
+]
+
+# Heavier processing dependencies (torch, pyannote.audio, faster-whisper,
+# whisperx) are intentionally NOT listed yet — add them when Phase-2/4
+# processing work begins, e.g.:  uv add torch pyannote.audio faster-whisper
+#
+# NOTE: pyzed (ZED SDK bindings) is NOT managed here. It ships with the ZED
+# SDK inside the ZedBox's own ZED_env conda environment. To enable LSL frame
+# markers on the ZedBox, run `pip install pylsl` inside ZED_env.
