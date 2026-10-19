@@ -197,24 +197,29 @@ is about consumer/personal cloud — a common accident, hard to reverse.
 
 <!-- TODO(unassigned): Track long-term storage decision here as it evolves. Update docs/storage.md with the concrete path names once institutional storage lands. -->
 
-## Where to start (validation sequence)
+## Validation sequence (status as of 2026-10-19)
 
-Prove the architecture works before investing in hardware or bridges.
+1. ✅ **Lab router** — Linksys WRT120N configured (`simlab`, WPA2, DHCP,
+   no WAN); analysis laptop wired; EmotiBit on WiFi. ZedBox wiring
+   pending its next availability.
+2. ✅ **LSL loop** — heartbeat + keyboard-marker outlets captured by
+   LabRecorder; `.xdf` verified with `tools/lsl_testing/check_xdf.py`.
+3. ⬜ **ZedBox** — code ready (`multiCameraRecord.py` publishes frame
+   markers when pylsl is present). Deploy: `pip install pylsl` in
+   ZED_env, run recorder, confirm `simcenter.zed.<serial>` in
+   LabRecorder.
+4. ✅ **EmotiBit** — 15 continuous + 4 derived streams over the lab LAN,
+   effective rates ~nominal, clap markers captured (validated 2026-10-19,
+   145 s and 336 s recordings).
+5. ✅ **Mic array** — ReSpeaker XVF3800 (USB v2.1.1 `16k6ch` firmware):
+   6-ch @ 16 kHz via `room_mic_marker.py`, WAV + 1 Hz markers wall-to-wall
+   in the overlap window (validated 2026-10-19). Use the WASAPI device
+   entry on Windows.
+6. ⬜ **Tobii** — G3LSLConnector checks: firmware vs. SDK v1.2.0,
+   connector binary in release, dual-homed discovery.
 
-1. **Lab router.** Buy one; get analysis laptop, ZedBox, and one Pi (or
-   a spare laptop) all seeing each other by hostname on the LAN.
-2. **Minimum LSL loop.** Python script on the analysis laptop publishing
-   a fake "heartbeat" outlet. LabRecorder captures it. `.xdf` loads in
-   pyxdf. ~1 hour.
-3. **Add ZedBox.** Write the tiny `zed_frame_marker.py`, run it on
-   ZedBox, confirm LabRecorder captures ZED frame timestamps alongside
-   heartbeat with sub-ms offsets. ~half day.
-4. **Add EmotiBit.** Native LSL outlet. Three-stream `.xdf`. Verify a
-   hand clap shows up in the EmotiBit accelerometer. ~half day.
-5. **Only then** add mic capture, then Tobii.
-
-Steps 1-4 prove the whole architecture. Everything else is
-per-modality integration on a foundation you've already validated.
+Steps 1-5 prove the architecture end-to-end for everything except the
+two devices that live at the sim center full-time.
 
 ## Related documentation
 

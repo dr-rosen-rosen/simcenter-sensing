@@ -29,6 +29,33 @@ Two ReSpeaker generations and one alternative are worth knowing.
 - The "classic" — well-documented, widely deployed in voice-UI work
 - **DoA output is directly useful as a speaker-counting prior** for diarization
 
+### Lab unit: ReSpeaker XVF3800 with XIAO ESP32S3 (as deployed)
+
+> **Device state (2026-10-19):** the lab's unit is the **XIAO ESP32S3
+> variant**, flashed to **USB firmware v2.1.1 `16k6ch`**. It enumerates as
+> "reSpeaker XVF3800 4-Mic Array" — **6 input channels @ 16 kHz**:
+> channels 1-2 = processed stereo (voice-enhanced), channels 3-6 = the
+> four **raw** microphones (unprocessed; lower level by design — keep
+> original levels for algorithm work).
+>
+> Gotchas learned the hard way:
+>
+> - The XIAO variant **ships with I2S firmware, which is invisible to
+>   USB hosts**. If the device ever stops enumerating after a reflash,
+>   that's why. USB firmware images live in
+>   [Seeed's repo](https://github.com/respeaker/reSpeaker_XVF3800_USB_4MIC_ARRAY/tree/master/xmos_firmwares/usb).
+> - **Flash procedure:** hold Mute while connecting power until the red
+>   LED blinks (Safe Mode), then
+>   `dfu-util -R -e -a 1 -D <firmware.bin>` ([Seeed FAQ](https://wiki.seeedstudio.com/respeaker_xvf3800_faq/)).
+> - **Use the XMOS USB-C port** (near the 3.5 mm jack) with a data
+>   cable. The other USB-C port belongs to the XIAO ESP32-S3 and will
+>   never show audio.
+> - Record at `--samplerate 16000` (the firmware's native rate).
+> - Firmware v2.0.6+ exposes a **`DOA_VALUE`** USB command (live
+>   direction-of-arrival 0-359° + speech-detected flag, via Seeed's
+>   `xvf_host.py`) — a future speaker-direction prior for diarization
+>   without touching the audio path.
+
 ### ReSpeaker (v3, mic array variants) — XMOS XVF-3800
 
 Same VocalFusion family, newer chip generation. XMOS's product positioning
