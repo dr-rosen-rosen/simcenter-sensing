@@ -215,11 +215,18 @@ is about consumer/personal cloud — a common accident, hard to reverse.
    6-ch @ 16 kHz via `room_mic_marker.py`, WAV + 1 Hz markers wall-to-wall
    in the overlap window (validated 2026-10-19). Use the WASAPI device
    entry on Windows.
-6. ⬜ **Tobii** — G3LSLConnector checks: firmware vs. SDK v1.2.0,
-   connector binary in release, dual-homed discovery.
+6. ✅ **Tobii** — G3LSLConnector v1.2.0 against firmware 1.29.4
+   (validated 2026-10-21): dual-homed discovery worked (lab laptop on
+   ethernet + unit's AP simultaneously); Gaze2d/3d, GazeDirection,
+   GazeOrigin, Pupil at ~50 Hz co-recorded with EmotiBit + mic.
+   Gotchas: run exactly ONE connector instance (each publishes its own
+   outlet set — two instances = duplicate live streams); the connector's
+   IMU outlets register but carry no data (leave unchecked); the unit's
+   web UI has an **ethernet section** — wiring the recording unit to the
+   lab router via USB-C adapter is the preferred path to multi-unit
+   setups (untested; try before buying a second host laptop).
 
-Steps 1-5 prove the architecture end-to-end for everything except the
-two devices that live at the sim center full-time.
+Only **ZedBox** (step 3) remains before a full-system rehearsal.
 
 ## Related documentation
 
