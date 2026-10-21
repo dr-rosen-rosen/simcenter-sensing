@@ -204,10 +204,15 @@ is about consumer/personal cloud — a common accident, hard to reverse.
    pending its next availability.
 2. ✅ **LSL loop** — heartbeat + keyboard-marker outlets captured by
    LabRecorder; `.xdf` verified with `tools/lsl_testing/check_xdf.py`.
-3. ⬜ **ZedBox** — code ready (`multiCameraRecord.py` publishes frame
-   markers when pylsl is present). Deploy: `pip install pylsl` in
-   ZED_env, run recorder, confirm `simcenter.zed.<serial>` in
-   LabRecorder.
+3. ✅ **ZedBox** — validated 2026-10-21: liblsl via GitHub arm64 deb
+   (conda-forge has no linux-aarch64 build) + `pip install pylsl` in
+   ZED_env; `simcenter.zed.44429816` markers recorded across the LAN
+   (~1/s, counts matching mic/heartbeat). SVO2 written locally as
+   designed. Note: ZedBox on the lab LAN has no internet by design —
+   software installs happen over a temporary hotspot with the ethernet
+   unplugged (wired route otherwise wins and DNS dead-ends at the
+   router). Open item: confirm second camera (45817796) publishes its
+   own stream when connected.
 4. ✅ **EmotiBit** — 15 continuous + 4 derived streams over the lab LAN,
    effective rates ~nominal, clap markers captured (validated 2026-10-19,
    145 s and 336 s recordings).
@@ -226,7 +231,12 @@ is about consumer/personal cloud — a common accident, hard to reverse.
    lab router via USB-C adapter is the preferred path to multi-unit
    setups (untested; try before buying a second host laptop).
 
-Only **ZedBox** (step 3) remains before a full-system rehearsal.
+All six steps validated individually (2026-10-21). Remaining capstone:
+a **full-system rehearsal** — every stream live in one recording (ZED +
+EmotiBit + mic + Tobii + claps) with a verified common overlap window.
+Lesson for the orchestration layer: LabRecorder records checked-but-dead
+streams as empty tracks without complaint, so a preflight "present AND
+flowing" check is mandatory before real sessions.
 
 ## Related documentation
 
