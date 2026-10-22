@@ -234,9 +234,60 @@ is about consumer/personal cloud — a common accident, hard to reverse.
 All six steps validated individually (2026-10-21). Remaining capstone:
 a **full-system rehearsal** — every stream live in one recording (ZED +
 EmotiBit + mic + Tobii + claps) with a verified common overlap window.
-Lesson for the orchestration layer: LabRecorder records checked-but-dead
-streams as empty tracks without complaint, so a preflight "present AND
-flowing" check is mandatory before real sessions.
+
+## Orchestration & data management — requirements backlog
+
+Accumulated from the October 2026 validation sessions; this is the next
+build phase. Each item earned its place by biting us at least once.
+
+**Session orchestration (`tools/session_orchestrator`, to be built):**
+
+- Preflight: every expected stream present **and flowing** before Start —
+  LabRecorder records checked-but-dead streams as empty tracks without
+  complaint (EmotiBit off, Tobii battery dead → silent empty data).
+- Preflight: each stream present **exactly once** — a stale
+  G3LSLConnector instance produced duplicate live copies of every Tobii
+  stream.
+- Single-command start/stop via LabRecorder's remote-control interface,
+  with filenames from [identifiers.md](identifiers.md) (not
+  `sub-P001/.../run-006`, which caused a wrong-file analysis).
+- Post-stop: auto-run `check_xdf`, write a session manifest (streams,
+  counts, overlap window, device inventory, operator notes).
+- Battery/charge state is part of preflight culture: devices live on a
+  charging shelf between sessions (two sessions lost time to dead
+  Tobii / misconfigured EmotiBit).
+- **Tobii session start is two machine actions + one human step.** The
+  G3LSLConnector's live gaze stream runs independently of on-device
+  recording (validated 2026-10-21: gaze streamed with no recording
+  active) — but **scene video + the full dataset exist only if an SD
+  recording is started on the unit**, and the Layer-1 clap only reaches
+  the Tobii modality via the scene camera. Orchestrator must: start the
+  connector, start an on-device recording via the G3 HTTP API
+  (g3pylib wraps it), and gate on per-wearer calibration
+  (human-in-the-loop; success is API-verifiable). The capstone
+  rehearsal must include the SD recording.
+
+**Data management:**
+
+- ✅ ZED SVO2 overwrite hazard — **fixed in code 2026-10-21**:
+  `multiCameraRecord.py` now writes each run into a timestamped
+  subdirectory (`~/zed_rec/<YYYYMMDD-HHMMSS>/<serial>.svo2`). A fixed
+  per-serial path silently overwrote the prior session. *Deploy note:
+  ZedBox needs a `git pull` (over hotspot, ethernet unplugged) to pick
+  this up.*
+- `offload_session.sh` (ZedBox → lab laptop rsync, verify-then-delete) —
+  still TODO; requires enabling OpenSSH server on the lab laptop.
+- External SSD for the lab laptop (raw-session tier) — purchase pending;
+  real sessions start accumulating GBs the moment ZED video joins.
+- **Tobii recording offload** — scene video + full dataset live on the
+  unit's SD card (rotating buffer, same policy as the ZedBox SSD:
+  delete only after verified copy). Preferred path: automated
+  per-session HTTP download from the unit via the G3 API (faster if the
+  wired-ethernet option pans out; slow but workable over the unit's
+  AP). Defined manual fallback: SD-card pull. Lands in the session
+  directory per [storage.md](storage.md).
+- Session directory layout per [storage.md](storage.md), with the
+  manifest as its index.
 
 ## Related documentation
 

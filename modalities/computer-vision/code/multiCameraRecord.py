@@ -67,7 +67,10 @@ def main():
     devs = sl.Camera.get_device_list()
     if not devs:
         print("No ZED devices found."); return 1
-    out_dir = os.path.expanduser("~/zed_rec")
+    # Per-run subdirectory: a fixed path would silently overwrite the
+    # previous session's SVO2s if offload hadn't happened yet.
+    out_dir = os.path.expanduser(time.strftime("~/zed_rec/%Y%m%d-%H%M%S"))
+    print(f"Session output dir: {out_dir}")
 
     threads=[]
     for d in devs:
