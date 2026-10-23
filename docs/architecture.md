@@ -277,8 +277,13 @@ pending, see its README):**
   per-serial path silently overwrote the prior session. *Deploy note:
   ZedBox needs a `git pull` (over hotspot, ethernet unplugged) to pick
   this up.*
-- `offload_session.sh` (ZedBox → lab laptop rsync, verify-then-delete) —
-  still TODO; requires enabling OpenSSH server on the lab laptop.
+- ✅ `offload_session.sh` — **built 2026-10-23**
+  (`modalities/computer-vision/code/`): scp + remote SHA-256 verification
+  via PowerShell (stock Windows OpenSSH — rsync deliberately avoided
+  since Windows doesn't ship it), delete-after-verify, newest-session
+  default. Lab test pending; requires enabling OpenSSH Server on the
+  analysis laptop (one-time, instructions in the script header). SSH
+  keys recommended to avoid repeated password prompts.
 - External SSD for the lab laptop (raw-session tier) — purchase pending;
   real sessions start accumulating GBs the moment ZED video joins.
 - **Tobii recording offload** — scene video + full dataset live on the

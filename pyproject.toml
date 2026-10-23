@@ -8,6 +8,7 @@ dependencies = [
     "pylsl>=1.16",
     "pyxdf>=1.16",
     "sounddevice>=0.4.6",
+    "websockets>=17.3",
 ]
 
 # Heavier processing dependencies (torch, pyannote.audio, faster-whisper,

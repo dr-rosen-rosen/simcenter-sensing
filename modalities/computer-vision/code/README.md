@@ -10,6 +10,7 @@ itself (or any host with the ZED SDK and `pyzed` installed). See
 | `replay_fusion_enhanced.py`   | Processing    | Offline fusion + analytics over recorded SVOs: body tracking, 3D fused skeletons, velocity/acceleration, head-frame computation, optional head crops, optional annotated demo videos. |
 | `gaze_geometry.py`            | Processing    | Head-frame + forward-direction computation from BODY_34 / BODY_38 keypoints, with quality-flag fallbacks. Imported by `replay_fusion_enhanced.py`. |
 | `projection_helpers.py`       | Processing    | SE3 inversion, world→image projection, fusion-calibration loader (`fusion_calibration.json`), intrinsics from `CameraInformation`. Imported by `replay_fusion_enhanced.py`. |
+| `offload_session.sh`          | Post-session  | Push a session's SVO2 dir to the analysis laptop over SSH (scp + remote SHA-256 verification via PowerShell — stock Windows OpenSSH, no rsync), delete local copy only after verify. `--dry-run` / `--keep`; config via `ZED_OFFLOAD_HOST` etc. |
 
 ## How they fit together
 

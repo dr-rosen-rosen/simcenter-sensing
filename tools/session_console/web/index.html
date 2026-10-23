@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Session Console</title>
+  <!-- Served locally (same-origin: SharedWorkers require it, and the lab
+       LAN has no internet). Fetch once per machine: python get_openmct.py -->
+  <script src="openmct/openmct.js"></script>
+  <style>html, body { margin: 0; height: 100%; }</style>
+</head>
+<body>
+  <script src="lsl-plugin.js"></script>
+  <script>
+    openmct.setAssetPath('openmct/');
+    openmct.install(openmct.plugins.LocalStorage());
+    openmct.install(openmct.plugins.MyItems());
+    openmct.install(openmct.plugins.UTCTimeSystem());
+    if (openmct.plugins.Espresso) {
+      openmct.install(openmct.plugins.Espresso());
+    }
+    openmct.install(openmct.plugins.Conductor({
+      menuOptions: [
+        { name: 'Realtime', timeSystem: 'utc', clock: 'local',
+          clockOffsets: { start: -2 * 60 * 1000, end: 5 * 1000 } },
+        { name: 'Fixed', timeSystem: 'utc',
+          bounds: { start: Date.now() - 10 * 60 * 1000, end: Date.now() } }
+      ]
+    }));
+    openmct.install(LSLPlugin());
+    openmct.time.setClock('local', { start: -2 * 60 * 1000, end: 5 * 1000 });
+    openmct.time.setTimeSystem('utc');
+    openmct.start();
+  </script>
+</body>
+</html>

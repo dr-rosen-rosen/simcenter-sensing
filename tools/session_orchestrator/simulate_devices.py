@@ -57,7 +57,13 @@ MARKERS = [
      lambda n: f"frames={n * 16000} sr=16000"),
     ("simcenter.zed.SIM0001", "Markers", 1.0,
      lambda n: f"serial=SIM0001 frame={n * 30} cam_ts_ns={n * 33000000}"),
-    ("HR", "HeartRate", 1.0, lambda n: f"{60 + random.randint(-5, 5)}"),
+]
+
+# Numeric but irregular (nominal 0), like EmotiBit's derived metrics:
+# plots in the console, unlike string marker streams which table.
+IRREGULAR_NUMERIC = [
+    # (name, type, mean_interval_s, value_fn)
+    ("HR", "HeartRate", 1.0, lambda: 60.0 + random.randint(-5, 5)),
 ]
 
 
@@ -76,6 +82,15 @@ def run_continuous(name, stype, nch, rate, instance=0):
         delay = target - time.monotonic()
         if delay > 0:
             time.sleep(delay)
+
+
+def run_irregular_numeric(name, stype, mean_interval, value_fn, instance=0):
+    source_id = f"sim-{name}-{instance}"
+    info = StreamInfo(name, stype, 1, 0, "float32", source_id)
+    outlet = StreamOutlet(info)
+    while not STOP.is_set():
+        outlet.push_sample([value_fn()])
+        time.sleep(mean_interval * random.uniform(0.8, 1.2))
 
 
 def run_marker(name, stype, interval, payload_fn, instance=0):
@@ -106,6 +121,16 @@ def main():
         for inst in range(copies):
             t = threading.Thread(target=run_continuous,
                                  args=(name, stype, nch, rate, inst), daemon=True)
+            t.start()
+            threads.append(t)
+            started.append(name + ("" if copies == 1 else f" [dup {inst}]"))
+    for name, stype, interval, fn in IRREGULAR_NUMERIC:
+        if name in args.drop:
+            continue
+        copies = 2 if name in args.dup else 1
+        for inst in range(copies):
+            t = threading.Thread(target=run_irregular_numeric,
+                                 args=(name, stype, interval, fn, inst), daemon=True)
             t.start()
             threads.append(t)
             started.append(name + ("" if copies == 1 else f" [dup {inst}]"))

@@ -1,8 +1,9 @@
 # Session console (Open MCT) — evaluation and plan
 
-> **Status:** drafted (evaluation) / not started (implementation)
+> **Status:** MVP implemented (2026-10-23) — see [`tools/session_console/`](../tools/session_console/README.md);
+> evaluation below retained for rationale. Lab smoke test pending.
 > **Owner:** unassigned
-> **Last reviewed:** 2026-10-13
+> **Last reviewed:** 2026-10-23
 
 A live control panel + post-session review console for data-collection
 sessions, built on [NASA Open MCT](https://nasa.github.io/openmct/)
