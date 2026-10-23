@@ -1,0 +1,104 @@
+# Session profile: simulator (development/testing without hardware).
+# Matches the streams published by simulate_devices.py.
+#
+# Matching rules: each [[streams]] entry has either `name` (exact; expected
+# count is exactly 1 unless min/max_count given) or `prefix` (matches any
+# stream whose name starts with it; count bounded by min/max_count).
+# `check_flow = true` requires samples to actually arrive during preflight,
+# not just outlet presence (LabRecorder happily records dead streams as
+# empty tracks - validated the hard way, 2026-10-21).
+
+[labrecorder]
+host = "127.0.0.1"
+port = 22345
+
+[session]
+study = "SIM"
+out_dir = "~/sessions"
+
+[preflight]
+resolve_seconds = 3.0   # LSL discovery wait
+flow_seconds = 3.0      # sample-collection window for check_flow
+
+[[streams]]
+name = "PPG_IR"
+type = "PPGInfrared"
+nominal_hz = 25
+required = true
+check_flow = true
+
+[[streams]]
+name = "PPG_RED"
+type = "PPGRed"
+nominal_hz = 25
+required = true
+check_flow = true
+
+[[streams]]
+name = "PPG_GRN"
+type = "PPGGreen"
+nominal_hz = 25
+required = true
+check_flow = true
+
+[[streams]]
+name = "EDA"
+type = "EDA"
+nominal_hz = 15
+required = true
+check_flow = true
+
+[[streams]]
+name = "TEMP1"
+type = "Temperature"
+nominal_hz = 7.5
+required = true
+check_flow = true
+
+[[streams]]
+name = "ACC_X"
+type = "AccelerometerX"
+nominal_hz = 25
+required = true
+check_flow = true
+
+[[streams]]
+name = "ACC_Y"
+type = "AccelerometerY"
+nominal_hz = 25
+required = true
+check_flow = true
+
+[[streams]]
+name = "ACC_Z"
+type = "AccelerometerZ"
+nominal_hz = 25
+required = true
+check_flow = true
+
+[[streams]]
+name = "Gaze2d"
+type = "Gaze2d"
+nominal_hz = 50
+required = true
+check_flow = true
+
+[[streams]]
+name = "simcenter.mic.marker"
+type = "Markers"
+required = true
+check_flow = true      # 1 marker/s - must see at least one in the window
+
+[[streams]]
+prefix = "simcenter.zed."
+type = "Markers"
+min_count = 1
+max_count = 2
+required = true
+check_flow = true
+
+[[streams]]
+name = "HR"
+type = "HeartRate"
+required = false
+check_flow = false     # beat detection is wearer-dependent; presence only

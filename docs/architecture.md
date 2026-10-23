@@ -240,7 +240,9 @@ EmotiBit + mic + Tobii + claps) with a verified common overlap window.
 Accumulated from the October 2026 validation sessions; this is the next
 build phase. Each item earned its place by biting us at least once.
 
-**Session orchestration (`tools/session_orchestrator`, to be built):**
+**Session orchestration (`tools/session_orchestrator` — core built
+2026-10-23, tested against synthetic streams; Windows/lab adaptation
+pending, see its README):**
 
 - Preflight: every expected stream present **and flowing** before Start —
   LabRecorder records checked-but-dead streams as empty tracks without
