@@ -85,11 +85,14 @@ the USB 16k6ch firmware, not I2S).
 1. Power on; ethernet to a numbered router port. (The ZedBox has no
    internet on the lab LAN **by design** — software installs happen over
    a phone hotspot with the ethernet unplugged.)
-2. At its console:
+2. At its console (set `ZED_CONSOLE_HOST` to push ~1 Hz camera previews
+   to the session console's imagery view — optional, recording works
+   without it):
 
    ```
    conda activate ZED_env
    cd ~/simcenter-sensing/modalities/computer-vision/code
+   export ZED_CONSOLE_HOST=<analysis-laptop-ip>
    python multiCameraRecord.py
    ```
 

@@ -65,6 +65,13 @@ so the UTC time conductor and realtime mode work natively.
 - [ ] Build the standard session display layout (per-subject physio strip,
       stream-health row) and document it
 - [ ] Condition sets for battery/dropout alarms (Open MCT UI config)
-- [ ] ZED/Tobii preview frames as imagery (per session-console.md phase 3)
+- [x] ZED preview frames as imagery — built 2026-11-05: any source can
+      `POST /api/frame?source=NAME` (JPEG body); appears as
+      `frame.<NAME>` with Open MCT's imagery view (latest + scrubbable
+      filmstrip, ~5-min ring). ZedBox pushes when `ZED_CONSOLE_HOST` is
+      set (opt-in; failures never touch recording). `simulate_frames.py`
+      is the hardware-free test source. Frames deliberately bypass LSL —
+      nothing lands in the .xdf. Tobii scene preview can reuse the same
+      endpoint later.
 - [ ] Consider surfacing orchestrator manifest events as an annotation
       stream in the console

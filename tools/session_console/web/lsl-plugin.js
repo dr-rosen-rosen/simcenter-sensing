@@ -27,7 +27,10 @@ function LSLPlugin() {
             key: 'utc', source: 't', name: 'Time',
             format: 'utc', hints: { domain: 1 }
         }];
-        if (meta.format === 'string') {
+        if (meta.kind === 'imagery') {
+            values.push({ key: 'url', name: 'Image', format: 'image',
+                          hints: { image: 1 } });
+        } else if (meta.format === 'string') {
             values.push({ key: 'text', name: 'Value', format: 'string',
                           hints: { range: 1 } });
         } else {
@@ -88,6 +91,7 @@ function LSLPlugin() {
                     name: meta.name,
                     type: 'lsl.telemetry',
                     location: NS + ':root',
+                    lslKind: meta.kind || 'lsl',
                     telemetry: { values: metadataValues(meta) }
                 };
             }
@@ -106,7 +110,9 @@ function LSLPlugin() {
         openmct.telemetry.addProvider({
             supportsRequest: (d) => d.type === 'lsl.telemetry',
             request: async (d, options) => {
-                const url = API + '/api/history?stream='
+                const endpoint = d.lslKind === 'imagery'
+                    ? '/api/frames?source=' : '/api/history?stream=';
+                const url = API + endpoint
                     + encodeURIComponent(d.identifier.key)
                     + '&start=' + options.start + '&end=' + options.end;
                 const resp = await fetch(url).then(r => r.json());

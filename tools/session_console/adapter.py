@@ -67,7 +67,7 @@ class Stream:
 
     def meta(self):
         return {"name": self.name, "type": self.type, "channels": self.channels,
-                "nominal_hz": self.nominal_hz, "format": self.fmt}
+                "nominal_hz": self.nominal_hz, "format": self.fmt, "kind": "lsl"}
 
     def append(self, t_ms, values, ring_ms):
         with self.lock:
@@ -93,6 +93,20 @@ class Stream:
 
 STREAMS = {}           # name -> Stream
 STREAMS_LOCK = threading.Lock()
+
+# Preview frames (e.g. ZED cameras) arrive as JPEG bytes via
+# POST /api/frame?source=NAME - a sidecar path that deliberately bypasses
+# LSL so images never bloat the .xdf or touch the capture path. In the
+# console tree each source appears as "frame.<NAME>" with Open MCT's
+# imagery view (latest frame + scrubbable filmstrip).
+FRAME_RING = 300       # frames kept per source (~5 min at 1 Hz)
+FRAMES = {}            # source -> {"ring": deque[(t_ms, bytes)], "pending": [t_ms]}
+FRAMES_LOCK = threading.Lock()
+
+
+def frame_meta(src):
+    return {"name": f"frame.{src}", "kind": "imagery", "type": "Imagery",
+            "channels": 1, "nominal_hz": 0, "format": "image"}
 
 
 def reader(stream, inlet, ring_ms):
@@ -179,11 +193,61 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def do_POST(self):
+        url = urlparse(self.path)
+        if url.path == "/api/frame":
+            q = parse_qs(url.query)
+            src = (q.get("source") or [""])[0]
+            n = int(self.headers.get("Content-Length") or 0)
+            if not src or n <= 0 or n > 2_000_000:
+                return self._json({"error": "need ?source= and a body <2MB"}, 400)
+            body = self.rfile.read(n)
+            t_ms = time.time() * 1000.0
+            with FRAMES_LOCK:
+                f = FRAMES.setdefault(src, {"ring": deque(), "pending": []})
+                f["ring"].append((t_ms, body))
+                f["pending"].append(t_ms)
+                while len(f["ring"]) > FRAME_RING:
+                    f["ring"].popleft()
+            return self._json({"ok": True, "t": t_ms})
+        return self._json({"error": "unknown endpoint"}, 404)
+
     def do_GET(self):
         url = urlparse(self.path)
         if url.path == "/api/streams":
             with STREAMS_LOCK:
-                return self._json([s.meta() for s in STREAMS.values()])
+                out = [s.meta() for s in STREAMS.values()]
+            with FRAMES_LOCK:
+                out += [frame_meta(src) for src in FRAMES]
+            return self._json(out)
+        if url.path == "/api/frames":
+            q = parse_qs(url.query)
+            name = (q.get("source") or [""])[0]
+            src = name[6:] if name.startswith("frame.") else name
+            start = float((q.get("start") or ["0"])[0])
+            end = float((q.get("end") or [str(time.time() * 1000)])[0])
+            with FRAMES_LOCK:
+                f = FRAMES.get(src)
+                ts = [t for t, _ in f["ring"]] if f else []
+            data = [{"t": t, "url": f"/api/frame/{src}/{t:.0f}.jpg"}
+                    for t in ts if start <= t <= end]
+            return self._json({"stream": name, "data": data})
+        if url.path.startswith("/api/frame/"):
+            parts = url.path.split("/")  # ['', 'api', 'frame', src, '<t>.jpg']
+            if len(parts) == 5:
+                src, want = parts[3], float(parts[4].rsplit(".", 1)[0])
+                with FRAMES_LOCK:
+                    f = FRAMES.get(src)
+                    pick = min(f["ring"], key=lambda p: abs(p[0] - want)) if f and f["ring"] else None
+                if pick:
+                    self.send_response(200)
+                    self.send_header("Content-Type", "image/jpeg")
+                    self.send_header("Content-Length", str(len(pick[1])))
+                    self.send_header("Cache-Control", "max-age=3600")
+                    self.end_headers()
+                    self.wfile.write(pick[1])
+                    return
+            return self._json({"error": "frame not found"}, 404)
         if url.path == "/api/history":
             q = parse_qs(url.query)
             name = (q.get("stream") or [""])[0]
@@ -248,6 +312,23 @@ async def broadcaster():
             payload = json.dumps({"stream": s.name, "points": data})
             with SUBS_LOCK:
                 targets = [ws for ws, names in SUBS.items() if s.name in names]
+            for ws in targets:
+                try:
+                    await ws.send(payload)
+                except websockets.exceptions.ConnectionClosed:
+                    pass
+        with FRAMES_LOCK:
+            frame_batches = []
+            for src, f in FRAMES.items():
+                if f["pending"]:
+                    pts = [{"t": t, "url": f"/api/frame/{src}/{t:.0f}.jpg"}
+                           for t in f["pending"]]
+                    f["pending"] = []
+                    frame_batches.append((f"frame.{src}", pts))
+        for name, pts in frame_batches:
+            payload = json.dumps({"stream": name, "points": pts})
+            with SUBS_LOCK:
+                targets = [ws for ws, names in SUBS.items() if name in names]
             for ws in targets:
                 try:
                     await ws.send(payload)
