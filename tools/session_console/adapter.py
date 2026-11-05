@@ -243,7 +243,16 @@ def main():
 
     threading.Thread(target=discovery, args=(ring_ms,), daemon=True).start()
 
-    httpd = http.server.ThreadingHTTPServer(("0.0.0.0", args.port), Handler)
+    try:
+        httpd = http.server.ThreadingHTTPServer(("0.0.0.0", args.port), Handler)
+    except OSError as e:
+        if e.errno in (48, 98):  # EADDRINUSE (macOS, Linux)
+            print(f"Port {args.port} is already in use - an adapter is "
+                  f"probably still running.\nStop it with:  pkill -f "
+                  f"session_console/adapter.py\nor pick another port with "
+                  f"--port.", file=sys.stderr)
+            return 1
+        raise
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
     print(f"Session console: http://localhost:{args.port}  (WS on {args.port + 1})")
     print(f"Ring buffer: {args.ring_seconds:.0f}s per stream. Ctrl+C to stop.")
