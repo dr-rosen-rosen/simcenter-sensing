@@ -242,7 +242,10 @@ def run_session(prof, unit, run_no, force, profile_path):
     rc.send("update")
     time.sleep(1.0)
     rc.send("select all")
-    rc.send("filename {template:%s}" % str(xdf_path))
+    # LabRecorder's RCS wants destination split into a directory ({root:})
+    # and a filename ({template:}); an absolute path in template alone is
+    # ignored in favor of its configured study root (observed 2026-11-05).
+    rc.send("filename {root:%s} {template:%s}" % (str(xdf_path.parent), xdf_path.name))
     rc.send("start")
     t_start = local_clock()
     marker_outlet.push_sample(["session_start"])
