@@ -121,13 +121,20 @@ camera.
    video exists ONLY if recording — and **calibrate the wearer**.
 
 **Verify:** `Gaze2d`, `Gaze3d`, `GazeDirection`, `GazeOrigin`, `Pupil`
-each appear **exactly once** in LabRecorder. (The orchestrator preflight
-counts these for you.)
+each appear **exactly once** in LabRecorder — and **someone must be
+wearing the glasses**: the gaze streams carry no data without eyes in
+front of the cameras (learned 2026-11-05). Empty-while-unworn is normal,
+not broken. This also means the orchestrator preflight needs the wearer
+fitted BEFORE it runs, or its gaze flow-checks will fail honestly.
 
 **If not:**
+- Streams registered but no data → is anyone wearing the glasses?
 - Each stream twice → stale connector; close all, start one.
 - Unit not discovered → confirm the laptop actually joined the right
   `TG03B-*` network; restart the connector (fixes most streaming issues).
+- Connector crashing / WiFi dropping → reconnect the laptop to the
+  unit's AP first, then restart the connector (in that order); it is
+  sensitive to the WiFi link breaking underneath it.
 - Unit dead → battery (hold power to confirm); swap + charge.
 
 ---
