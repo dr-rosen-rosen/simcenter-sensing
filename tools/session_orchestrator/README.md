@@ -57,15 +57,15 @@ On macOS, pylsl needs liblsl; the scripts auto-use
 
 ## Lab deployment (pending — next lab visit)
 
-- [ ] **Enable LabRecorder's remote control**: in LabRecorder's config
-      (`LabRecorder.cfg`) set the RCS port to 22345 / enable RCS; verify
-      the `filename {template:...}` command syntax against the installed
-      version (client written against 1.18.x docs).
-- [ ] **Write `profiles/lab.toml`** from a real all-devices recording:
-      EmotiBit streams + derived, `simcenter.mic.marker`,
-      `simcenter.zed.` prefix (min 1, max 2), Tobii gaze streams
-      (exactly-once matters!), `required`/`check_flow` tuned per device.
-- [ ] **Windows pass**: paths, console behavior, `uv run` invocations.
+- [x] **LabRecorder remote control** — verified on real hardware
+      2026-11-05. Note: the destination must be sent as
+      `filename {root:<dir>} {template:<name>}`; an absolute path in
+      template alone is silently ignored.
+- [x] **`profiles/lab.toml`** — written from the validated October stream
+      inventory; confirmed against the live rig 2026-11-05. Reminder:
+      gaze flow-checks need the glasses ON a wearer during preflight.
+- [x] **Windows pass** — orchestrated end-to-end run on the lab laptop
+      2026-11-05 (correct paths, manifest, auto-verify).
 - [ ] **Tobii device plugin**: start/stop the on-device SD recording via
       the G3 HTTP API (g3pylib) and gate on calibration — see the
       backlog in docs/architecture.md ("two machine actions + one human

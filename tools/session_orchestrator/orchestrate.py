@@ -210,7 +210,7 @@ def run_session(prof, unit, run_no, force, profile_path):
         "study": study, "unit": unit, "session": session_id,
         "run": run_no, "operator": getpass.getuser(),
         "profile": str(profile_path),
-        "started_utc": dt.datetime.utcnow().isoformat() + "Z",
+        "started_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
         "xdf": str(xdf_path), "events": [], "preflight": None,
         "verification": None, "notes": [],
     }
@@ -318,7 +318,7 @@ def _summarize(analysis):
 
 def _write_manifest(path, manifest, aborted=False):
     manifest["aborted"] = aborted
-    manifest["finished_utc"] = dt.datetime.utcnow().isoformat() + "Z"
+    manifest["finished_utc"] = dt.datetime.now(dt.timezone.utc).isoformat()
     with open(path, "w") as f:
         json.dump(manifest, f, indent=2)
     print(f"Manifest -> {path}")
