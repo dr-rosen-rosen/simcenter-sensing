@@ -63,6 +63,7 @@ class Stream:
         self.pending = []            # new samples since last broadcast
         self.lock = threading.Lock()
         self.alive = True
+        self.clock_alien = False     # timestamps not in any host clock domain
 
     def meta(self):
         return {"name": self.name, "type": self.type, "channels": self.channels,
@@ -95,11 +96,36 @@ STREAMS_LOCK = threading.Lock()
 
 
 def reader(stream, inlet, ring_ms):
+    # LSL timestamps arrive in the SENDER's clock domain. time_correction()
+    # maps a remote host's clock onto ours (the ZedBox case). Some sources
+    # stamp samples with a DEVICE's internal clock instead (Tobii's
+    # G3LSLConnector) - no host-level correction fixes that, so anything
+    # still absurdly far from wall clock falls back to arrival time. The
+    # console is a live display; the .xdf remains the precision record.
+    tc = 0.0
+    tc_checked_at = 0.0
     try:
         while stream.alive:
+            now_s = time.time()
+            if now_s - tc_checked_at > 30.0:
+                try:
+                    tc = inlet.time_correction(timeout=2.0)
+                except Exception:
+                    tc = 0.0
+                tc_checked_at = now_s
             chunk, stamps = inlet.pull_chunk(timeout=0.5)
+            if not chunk:
+                continue
+            now_ms = time.time() * 1000.0
             for values, ts in zip(chunk, stamps):
-                t_ms = ts * 1000.0 + CLOCK_OFFSET_MS
+                t_ms = (ts + tc) * 1000.0 + CLOCK_OFFSET_MS
+                if abs(t_ms - now_ms) > 3_600_000.0:  # > 1 h off wall clock
+                    if not stream.clock_alien:
+                        stream.clock_alien = True
+                        print(f"[reader] {stream.name}: timestamps far from wall "
+                              f"clock even after host correction (device-time "
+                              f"source?) - displaying at arrival time")
+                    t_ms = now_ms
                 stream.append(t_ms, list(values), ring_ms)
     except Exception as e:
         print(f"[reader] {stream.name} ended: {e}")
