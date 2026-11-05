@@ -99,6 +99,24 @@ the USB 16k6ch firmware, not I2S).
 3. Note the printed **session output dir** (timestamped, one per run) and
    per-camera lines: `recording to ...` + `LSL frame markers on`.
 
+**Remote access (no monitor/keyboard needed once set up):** SSH from the
+lab laptop (`ssh zedbox@<ip>` — give the ZedBox a DHCP reservation in the
+Linksys so the IP is stable). **Always launch the recorder inside
+`tmux`** when connected over SSH — a bare SSH-launched process dies with
+the connection, killing the recording:
+
+```
+tmux new -s rec        # run recorder inside; detach with Ctrl+B then D
+tmux attach -t rec     # reattach to check on it / stop it
+```
+
+For GUI tools (ZED360 calibration, ZED_Explorer): Ubuntu 22.04's built-in
+Remote Desktop (Settings → Sharing → RDP; enable auto-login) + Windows'
+native Remote Desktop client. Headless Jetsons may need a cheap HDMI
+dummy plug for GNOME to render properly.
+One-time install (hotspot, ethernet unplugged):
+`sudo apt install -y openssh-server tmux`.
+
 **Verify:** `simcenter.zed.<serial>` in LabRecorder, one per connected
 camera.
 

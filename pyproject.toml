@@ -5,6 +5,7 @@ description = "LSL capture tooling and verification utilities for sim-center mul
 requires-python = ">=3.11"
 dependencies = [
     "numpy>=1.26",
+    "opencv-python>=5.0.0.93",
     "pillow>=13.0.0",
     "pylsl>=1.16",
     "pyxdf>=1.16",
